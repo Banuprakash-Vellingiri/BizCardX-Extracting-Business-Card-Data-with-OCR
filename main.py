@@ -68,7 +68,7 @@ def extract(uploaded_image):
             elif pincode:
                 pc = pincode.group(1)
                 pin_code_list.append(pc)
-                #sometimes state name comes with pincodeline.For moving state name into address list we are using this
+                #in this sample data sets sometimes state name comes along with pincode.For moving state name into address list we are using this.
                 match_checking= re.match(r'^([A-Za-z]+)',i)
                 if  match_checking:
                     state_name =  match_checking.group(1)
