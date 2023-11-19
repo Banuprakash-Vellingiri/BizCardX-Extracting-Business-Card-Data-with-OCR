@@ -149,7 +149,7 @@ if selected=="Store to Database":
     mydb = mysql.connect(
                             host="localhost",
                             user="root",
-                            password="952427",
+                            password="95",
                             database="bizcard_database",
                         )
     mycursor = mydb.cursor(buffered=True)
