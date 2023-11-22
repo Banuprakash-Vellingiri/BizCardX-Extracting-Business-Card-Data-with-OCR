@@ -32,7 +32,7 @@
 ## Developer Guide
 
 ### 1. Tools Install
-    - Virtual code.
+    -Virtual code.
     - Jupyter notebook.
     - Python 3.11.0 or higher.
     - MySQL.
