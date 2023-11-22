@@ -82,3 +82,8 @@
 
 #### Step 3. Modification zone
     - In this 'Modification zone' you can able to modify the information also you can delete the previous data
+### 1. Tools Install
+    - Virtual code.
+    - Jupyter notebook.
+    - Python 3.11.0 or higher.
+    - MySQL.
