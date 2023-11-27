@@ -6,7 +6,7 @@ import re
 from PIL import Image
 import numpy as np
 import pandas as pd
-import mysql.connector as mysql
+import mysql.connector
 #----------------------------------------------------------------------------------------------------------------------------------------- 
 #Setting streamlit environment
 
@@ -30,9 +30,9 @@ def extract(uploaded_image):
     image = Image.open(uploaded_image)
     grayscale_image = image.convert('L')                          #Converting RGB image to black and white iamge
     image_to_np_array= np.array(grayscale_image)                  #Converting image into np array
-    read = easyocr.Reader(['en'])                                 #setting to read english language
-    card_info_list = read.readtext(image_to_np_array,detail = 0)  #Reading card information  
-    
+    language_to_read= easyocr.Reader(['en'])                                 #setting to read english language
+    card_info_list =language_to_read.readtext(image_to_np_array,detail = 0)  #Reading card information  
+    print(card_info_list)
     # card_info_list=['Selva', 'DATA MANAGER', '+123-456-7890', '+123-456-7891', 'WWW XYZI.com', 'hello@XYZ1.com', '123 ABC St , Chennai', 'selva', 'TamilNadu 600113', 'digitals']
     #-----------------------------------------------------------------------------------------------------------------------------------------
     # Pattern making using regular expression
@@ -43,20 +43,25 @@ def extract(uploaded_image):
     address_pattern = re.compile(r'\d+\s[a-zA-Z]+')
     pincode_pattern=re.compile(r'\b(\d{6,7})\b')
     #-----------------------------------------------------------------------------------------------------------------------------------------
-    name = card_info_list [0]
-    designation = card_info_list [1]
+
+    name=[]
+    designation=[]
     phone_number_list = []
     mail_id_list=[]
     website_list=[]
     address_list=[]
-    pin_code_list=[]  
+    pin_code_list=[] 
+    company_name_list=[]
     for i in card_info_list :
             phone_number= phone_number_pattern.search(i)
             mail_id = mail_id_pattern.search(i)
             website = website_pattern.search(i)
             address = address_pattern.search(i)
             pincode= pincode_pattern.search(i)
-
+            if i==card_info_list[0]:
+                name.append(i)
+            if i==card_info_list[1] :
+                designation.append(i)
             if phone_number:
                 phone_number_list .append(i)
             elif mail_id:
@@ -68,15 +73,18 @@ def extract(uploaded_image):
             elif pincode:
                 pc = pincode.group(1)
                 pin_code_list.append(pc)
-                #in this sample data sets sometimes state name comes along with pincode.For moving state name into address list we are using this.
+                #sometimes in this model state name comes with pincodeline.For moving state name into address list we are using this
                 match_checking= re.match(r'^([A-Za-z]+)',i)
                 if  match_checking:
                     state_name =  match_checking.group(1)
                     address_list.append(state_name)
+            elif i != card_info_list[0] and i !=card_info_list[1]:
+                company_name_list.append(i)
+              
 
-    return name,designation,','.join(phone_number_list),','.join(mail_id_list),'/'.join( website_list),','.join(address_list),'/'.join(pin_code_list)            
+    return ''.join(name),''.join(designation),','.join(phone_number_list),','.join(mail_id_list),'/'.join( website_list),','.join(address_list),'/'.join(pin_code_list),' '.join(company_name_list)            
 #-----------------------------------------------------------------------------------------------------------------------------------------
-# Home
+# Home page
 
 if selected=="Home":
     if selected == "Home":
@@ -117,22 +125,14 @@ if selected=="Upload and Extract":
             if extract_button:
                 with st.spinner('Please Wait for few seconds...'):
                  if image_upload is not None:
-                    name,designation,phone_number,email_id,website,address,pincode = extract(image_upload)
+                    name,designation,phone_number,email_id,website,address,pincode,company_name = extract(image_upload)
                     
-                    data = [name,designation,phone_number,email_id,website,address,pincode]
+                    data = [company_name,name,designation,phone_number,email_id,website,address,pincode]
                     list = []
-                    # list.append(name)
-                    # list.append(designation)  
-                    # list.append(phone_number)  
-                    # list.append(email_id)  
-                    # list.append(website)  
-                    # list.append(address) 
-                    # list.append(pincode) 
-
-                    list.append(data)  
-                 
-                    df = pd.DataFrame(list,columns = ['Name','Designation','Phone_number','Email_id','Website','Address','Pincode'])
+                    list.append(data)                
+                    df = pd.DataFrame(list,columns = ['Company_name','Name','Designation','Phone_number','Email_id','Website','Address','Pincode'])
                     st.dataframe(df)  
+                    st.subheader(f':green[Company_name] : {company_name}')
                     st.subheader(f':green[Name] :        {name}')
                     st.subheader(f':green[Designation] : {designation}')
                     st.subheader(f':green[Phone no] :    {phone_number}')
@@ -142,31 +142,38 @@ if selected=="Upload and Extract":
                     st.subheader(f':green[Pincode] :     {pincode}')
                     st.success("Data Extracted Successfully !!!...")
 #-----------------------------------------------------------------------------------------------------------------------------------------
-# Storing into SQL Database
+# Storing into SQL Database 
 
 if selected=="Store to Database": 
     st.info('## Upload extracted data into MYSQL Database')
-    mydb = mysql.connect(
+    mydb = mysql.connector.connect(
                             host="localhost",
                             user="root",
-                            password="95",
-                            database="bizcard_database",
+                            password="952427",
+                            # database="bizcard_database",
                         )
-    mycursor = mydb.cursor(buffered=True)
+    mycursor = mydb.cursor(buffered=True) #buffered =True means fetches all data to the temporary memory and reduces query processing time but it leads to storage issue.
+    mycursor.execute('create database if not exists bizcard_database;')
+    mydb.commit()
+    mycursor.execute('use bizcard_database;')
+    mydb.commit()
     image_upload = st.file_uploader('Kindly upload your Image')
+
+    #Create unique_id for each data for data fetching.
     st.subheader(':green[Enter ID:]')
     id = st.text_input('Create &nbsp;unique ID for the businees card details')
+    #Upload button
     upload_button= st.button('Upload into MYSQL Database')
-
     if upload_button:
        
         with st.spinner('Please wait...'):
-              
-                name,designation,phone_number,email_id,website,address,pincode = extract(image_upload)
-                table_creation_query=table_creation_query = "CREATE TABLE IF NOT EXISTS bizcard_data (id VARCHAR(100), name VARCHAR(50), designation VARCHAR(100), phone_number VARCHAR(100), website VARCHAR(100), mail_id VARCHAR(100), address VARCHAR(150), pincode INT(10));"
+                #Creating table
+                name,designation,phone_number,email_id,website,address,pincode,company_name = extract(image_upload)
+                table_creation_query=table_creation_query = "CREATE TABLE IF NOT EXISTS bizcard_data (id VARCHAR(100),company_name VARCHAR(60),name VARCHAR(50), designation VARCHAR(100), phone_number VARCHAR(100), website VARCHAR(100), mail_id VARCHAR(100), address VARCHAR(150), pincode INT(10));"
                 mycursor.execute( table_creation_query)
-                query = 'INSERT INTO bizcard_data (id,name,designation,phone_number,website,mail_id,address,pincode) VALUES (%s,%s,%s,%s,%s,%s,%s,%s);'
-                values = (id,name,designation,phone_number,email_id,website,address,pincode)
+
+                query = 'INSERT INTO bizcard_data (id,company_name,name,designation,phone_number,website,mail_id,address,pincode) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s);'
+                values = (id,company_name,name,designation,phone_number,email_id,website,address,pincode)
                 mycursor.execute(query,values)
                 mydb.commit()
                 st.success("Data uploaded Successfully !!!")
@@ -174,33 +181,47 @@ if selected=="Store to Database":
 #-----------------------------------------------------------------------------------------------------------------------------------------
 # View/Update/Delete
 
+#Connecting to MYSQL data_base
 if selected=="View/Update/Delete":
     st.info('## View-Update-Delete')
-    mydb = mysql.connect(
+    mydb = mysql.connector.connect(
                             host="localhost",
                             user="root",
                             password="952427",
                             database="bizcard_database",
                         )
     mycursor = mydb.cursor(buffered=True) 
+    #-----------------------------------------------------------------------------------------------------------------------------------------
+    #Display the data from database 
+
     st.subheader(':green[View Data:]')
     id = st.text_input('Enter your Id')
     submit = st.button('View Details')
     if id is not None:
         if submit:
             with st.spinner('Please wait..'):
-                view_query = 'select id,name,designation,phone_number,website,mail_id,address,pincode from bizcard_data where id = %s;'
+                view_query = 'select id,company_name,name,designation,phone_number,website,mail_id,address,pincode from bizcard_data where id = %s;'
                 values = [id]
                 mycursor.execute(view_query,values)
                 data = mycursor.fetchall()
-                df = pd.DataFrame(data,columns = ["Id","name","designation","phone_number","website","mail_id","address","pincode"])
+                df = pd.DataFrame(data,columns = ["Id","company_name","name","designation","phone_number","website","mail_id","address","pincode"])
                 st.dataframe(df) 
                 st.success("Data fetched Succesfully!!!")
-            
+    #-----------------------------------------------------------------------------------------------------------------------------------------
+    #Update the data in database  
+         
     st.subheader(':green[Update Data:]')
+    select_options = st.selectbox('select any one field that you want to update',options=['Select any one','company_name','name','designation','phone_number','website','mail_id','address','pin_code'])
 
-    select_options = st.selectbox('select any one field that you want to update',options=['Select any one','name','designation','phone_number','website','mail_id','address','pin_code'])
-
+    if select_options == 'company_name':
+        company_name = st.text_input('Enter your company_name')
+        update = st.button('Update your details')
+        if update:
+            update_query = 'UPDATE bizcard_data SET company_name= %s WHERE id = %s;'
+            values = (company_name,id)
+            mycursor.execute(update_query,values)
+            mydb.commit()
+            st.success("Data updated Succesfully!!!")
     if select_options == 'name':
         name = st.text_input('Enter your name')
         update = st.button('Update your details')
@@ -210,6 +231,7 @@ if selected=="View/Update/Delete":
             mycursor.execute(update_query,values)
             mydb.commit()
             st.success("Data updated Succesfully!!!")
+
 
     elif select_options == 'designation':
         designation = st.text_input('Enter your designation')
@@ -269,6 +291,8 @@ if selected=="View/Update/Delete":
             mycursor.execute(update_query,values)
             mydb.commit()
             st.success("Data updated Succesfully!!!")
+    #-----------------------------------------------------------------------------------------------------------------------------------------
+    #Delete the data from database
 
     st.subheader(':green[Delete Data:]')
     delete_id = st.text_input('Enter your id')
@@ -281,4 +305,7 @@ if selected=="View/Update/Delete":
             mydb.commit()
             st.success("Data deleted Succesfully!!!")
 
+#-----------------------------------------------------------------------------------------------------------------------------------------
+#Closing the database connection
+    mydb.close()
 #-----------------------------------------------------------------------------------------------------------------------------------------
