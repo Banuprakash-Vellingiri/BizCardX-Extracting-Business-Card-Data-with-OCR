@@ -1,3 +1,4 @@
+#-------------------------------------BizCardX-Extracting Business Card Data with OCR------------------------------------------------------------
 #Importing necessary libraries
 import streamlit as st
 from streamlit_option_menu import option_menu
