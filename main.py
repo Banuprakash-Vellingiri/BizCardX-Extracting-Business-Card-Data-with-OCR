@@ -1,4 +1,5 @@
 #-------------------------------------BizCardX-Extracting Business Card Data with OCR------------------------------------------------------------
+
 #Importing necessary libraries
 import streamlit as st
 from streamlit_option_menu import option_menu
@@ -165,7 +166,8 @@ if selected=="Store to Database":
     id = st.text_input('Create &nbsp;unique ID for the businees card details')
     #Upload button
     upload_button= st.button('Upload into MYSQL Database')
-    if upload_button:
+    if id.isdigit():
+     if upload_button:
        
         with st.spinner('Please wait...'):
                 #Creating table
@@ -310,3 +312,4 @@ if selected=="View/Update/Delete":
 #Closing the database connection
     mydb.close()
 #-----------------------------------------------------------------------------------------------------------------------------------------
+
